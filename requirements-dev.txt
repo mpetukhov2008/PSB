@@ -1,6 +1,2 @@
--r requirements.txt
-pytest>=8,<10
-ruff>=0.11,<1
-playwright>=1.50,<2
-jsbeautifier>=2,<3
-cssbeautifier>=2,<3
+# Only browser tests require this development dependency.
+playwright==1.51.0
