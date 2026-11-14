@@ -2,16 +2,16 @@
 
 import argparse
 import json
-import os
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
-from psb.assistant import Assistant
+from psb import __version__
+from psb.assistant import Assistant, RequestError
+from psb.config import corpus_path, load_environment
 from psb.knowledge import KnowledgeBase
 
-ROOT = Path(__file__).resolve().parents[1]
 STATIC = Path(__file__).parent / "static"
 
 
@@ -19,7 +19,7 @@ def make_server(host, port, assistant):
     slots = threading.BoundedSemaphore(4)
 
     class Handler(BaseHTTPRequestHandler):
-        server_version = "PSBAssistant/1.0"
+        server_version = "PSBAssistant/" + __version__
 
         def log_message(self, format, *args):
             # Do not log questions, source texts, or model credentials.
@@ -28,18 +28,18 @@ def make_server(host, port, assistant):
         def send(self, status, body, mime="application/json; charset=utf-8"):
             if not isinstance(body, bytes):
                 body = json.dumps(body, ensure_ascii=False).encode()
-            self.send_response(status)
-            self.send_header("Content-Type", mime)
-            self.send_header("Content-Length", str(len(body)))
-            self.send_header("Cache-Control", "no-store")
-            self.send_header("X-Content-Type-Options", "nosniff")
-            self.send_header("Referrer-Policy", "no-referrer")
-            self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
-            self.end_headers()
             try:
+                self.send_response(status)
+                self.send_header("Content-Type", mime)
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("X-Content-Type-Options", "nosniff")
+                self.send_header("Referrer-Policy", "no-referrer")
+                self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
+                self.end_headers()
                 self.wfile.write(body)
-            except (BrokenPipeError, ConnectionResetError):
-                pass
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+                pass  # The client may stop waiting while the model is running.
 
         def host_allowed(self):
             try:
@@ -56,6 +56,8 @@ def make_server(host, port, assistant):
             path = unquote(urlsplit(self.path).path)
             if path == "/api/health":
                 return self.send(200, {"status": "ok", "application": "psb",
+                                       "version": __version__,
+                                       "corpus_fingerprint": assistant.kb.fingerprint,
                                        "documents": len(assistant.kb.documents),
                                        "fragments": len(assistant.kb.fragments),
                                        "corpus_kind": assistant.kb.kind,
@@ -84,8 +86,14 @@ def make_server(host, port, assistant):
             origin = self.headers.get("Origin")
             # Disallow browser requests from foreign sites, even through localhost.
             if origin:
-                parsed = urlsplit(origin)
-                if parsed.scheme not in {"http", "https"} or parsed.netloc != self.headers.get("Host"):
+                try:
+                    parsed = urlsplit(origin)
+                    same_origin = (parsed.scheme in {"http", "https"}
+                                   and parsed.netloc == self.headers.get("Host")
+                                   and not parsed.path and not parsed.query and not parsed.fragment)
+                except ValueError:
+                    same_origin = False
+                if not same_origin:
                     return self.send(403, {"detail": "Запрос с другого сайта запрещён"})
             if self.headers.get_content_type() != "application/json":
                 return self.send(415, {"detail": "Нужен Content-Type: application/json"})
@@ -105,10 +113,15 @@ def make_server(host, port, assistant):
                 value = json.loads(raw)
                 result = assistant.answer(value)
                 self.send(200, result)
+            except RequestError as exc:
+                self.send(422, {"detail": str(exc)})
             except (ValueError, TypeError, UnicodeError):
                 self.send(422, {"detail": "Проверьте формат запроса, дату, историю и выбранные документы."})
             except (TimeoutError, OSError):
                 self.send(408, {"detail": "Время чтения запроса истекло"})
+            except Exception:
+                # Never send model output, secrets or a Python traceback to the client.
+                self.send(500, {"detail": "Не удалось обработать запрос. Попробуйте ещё раз или начните новый диалог."})
             finally:
                 slots.release()
 
@@ -127,10 +140,14 @@ def main():
     parser = argparse.ArgumentParser(description="ПСБ · юридический ассистент")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8080)
-    parser.add_argument("--corpus", default=os.getenv("PSB_CORPUS_PATH", str(ROOT / "samples/psb-demo.json")))
+    parser.add_argument("--corpus")
     args = parser.parse_args()
-    kb = KnowledgeBase.load(args.corpus)
-    server = make_server(args.host, args.port, Assistant(kb))
+    try:
+        load_environment()
+        kb = KnowledgeBase.load(corpus_path(args.corpus))
+        server = make_server(args.host, args.port, Assistant(kb))
+    except (ValueError, OSError, TypeError):
+        parser.exit(1, "Не удалось запустить PSB. Проверьте .env, базу знаний и свободный порт.\n")
     print(f"PSB: http://{args.host}:{args.port}; corpus={kb.kind}; documents={len(kb.documents)}", flush=True)
     try:
         server.serve_forever()
@@ -142,3 +159,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
