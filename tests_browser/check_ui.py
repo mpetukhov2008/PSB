@@ -124,6 +124,8 @@ def main():
             assert "Ожидание остановлено" in page.locator("#error").inner_text()
             assert page.locator("#send").is_enabled()
             page.locator("#new-chat").click()
+            for route in pending:
+                route.abort()
             page.unroute("**/api/chat")
             assert page.locator(".message").count() == 0
             # A fresh question is not contaminated by the aborted conversation.
