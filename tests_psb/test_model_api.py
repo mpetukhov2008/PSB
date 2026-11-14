@@ -86,9 +86,10 @@ class ModelAPITests(unittest.TestCase):
         self.assertEqual(len(self.server.seen), 1)
 
     def test_unconfigured_model_not_ready(self):
-        with patch.dict(os.environ, {"PSB_LLM_BASE_URL": "", "PSB_LLM_MODEL": ""}):
+        with patch.dict(os.environ, {"PSB_LLM_BASE_URL": "", "PSB_LLM_MODEL": "", "PSB_LLM_API_KEY": ""}):
             self.assertFalse(Model().ready)
 
 
 if __name__ == "__main__":
     unittest.main()
+

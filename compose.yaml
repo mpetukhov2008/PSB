@@ -8,6 +8,7 @@ services:
       PSB_LLM_BASE_URL: ${PSB_LLM_BASE_URL:-}
       PSB_LLM_API_KEY: ${PSB_LLM_API_KEY:-}
       PSB_LLM_MODEL: ${PSB_LLM_MODEL:-}
+      PSB_LLM_TIMEOUT_SECONDS: ${PSB_LLM_TIMEOUT_SECONDS:-35}
     volumes:
       - ${PSB_CORPUS_FILE:-./samples/psb-demo.json}:/opt/psb/corpus/knowledge.json:ro
     read_only: true
@@ -20,3 +21,4 @@ services:
     pids_limit: 128
     mem_limit: 512m
     restart: unless-stopped
+

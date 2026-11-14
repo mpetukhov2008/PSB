@@ -1,6 +1,6 @@
 "use strict";
 const $ = id => document.getElementById(id);
-let history = [], generation = 0, busy = false;
+let history = [], generation = 0, busy = false, activeRequest = null;
 const selected = new Set();
 const labels = {answered: "Ответ с основаниями", corrected: "Предпосылка исправлена", partial: "Частичный ответ", insufficient: "Недостаточно данных", clarification: "Нужно уточнение", out_of_scope: "Вне области работы", refused: "Запрос отклонён", excerpts: "Найденные выдержки", verification_failed: "Проверка не пройдена"};
 function el(tag, text, className) {
@@ -17,15 +17,17 @@ async function getJson(url, options) {
   return data;
 }
 async function openSource(id, quote) {
+  const ownGeneration = generation;
   try {
     const doc = await getJson("/api/documents/" + encodeURIComponent(id));
+    if (ownGeneration !== generation) return;
     $("source-title").textContent = doc.title;
     const body = $("source-body"); body.replaceChildren();
     body.append(el("p", `${doc.revision} · с ${doc.effective_from || "дата не указана"}${doc.effective_to ? " до " + doc.effective_to + " (не включая)" : ""}`));
     if (quote) body.append(el("blockquote", quote));
     for (const section of doc.sections) body.append(el("h3", section.locator), el("p", section.text));
-    $("source-dialog").showModal();
-  } catch (error) { showError(error.message); }
+    if (!$("source-dialog").open) $("source-dialog").showModal();
+  } catch (error) { if (ownGeneration === generation) showError(error.message); }
 }
 function bubble(role, text) {
   const node = el("article", undefined, "message " + role);
@@ -68,33 +70,53 @@ function renderAnswer(result) {
   const steps = el("ol"); result.stages.forEach(step => steps.append(el("li", `${step.name} · ${step.elapsed_ms} мс`))); trace.append(steps);
   trace.append(el("p", result.mode === "model" ? "Для генерации и отдельной смысловой проверки используется одна модель. Это не гарантия юридической правильности." : "Локальный поиск по словам. Юридические выводы не формировались."));
   node.append(trace);
+  const download = el("button", "Скачать результат · JSON", "download-result");
+  download.type = "button";
+  download.addEventListener("click", () => {
+    const url = URL.createObjectURL(new Blob([JSON.stringify(result, null, 2)], {type: "application/json"}));
+    const link = el("a"); link.href = url; link.download = "psb-result.json";
+    document.body.append(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  node.append(download);
+  node.scrollIntoView({block: "start", behavior: "auto"});
 }
 $("chat-form").addEventListener("submit", async event => {
   event.preventDefault(); if (busy) return;
   const question = $("question").value.trim(); if (question.length < 2) return;
   const ownGeneration = generation;
   busy = true; $("send").disabled = true; $("activity").hidden = false; showError("");
-  $("intro").hidden = true; bubble("user", question); $("question").value = "";
+  $("intro").hidden = true; const questionBubble = bubble("user", question); $("question").value = "";
+  activeRequest = new AbortController();
   try {
-    const result = await getJson("/api/chat", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({question, history: history.slice(-10), document_ids: [...selected], event_date: $("event-date").value})});
+    const payload = {question, history: history.slice(-8).map(turn => ({role: turn.role, content: turn.content.slice(0, 2800)})), document_ids: [...selected], event_date: $("event-date").value};
+    while (new TextEncoder().encode(JSON.stringify(payload)).length > 90000 && payload.history.length) payload.history.splice(0, 2);
+    const result = await getJson("/api/chat", {method: "POST", signal: activeRequest.signal, headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload)});
     if (ownGeneration !== generation) return;
     renderAnswer(result);
     history.push({role: "user", content: question}, {role: "assistant", content: [result.message, ...result.claims.map(c => c.text)].join("\n")});
-    history = history.slice(-10);
+    history = history.slice(-8);
   } catch (error) {
-    if (ownGeneration === generation) { showError(error.message); $("question").value = question; }
+    if (ownGeneration === generation) {
+      showError(error.name === "AbortError" ? "Ожидание остановлено. Обработка на сервере может завершиться отдельно." : error.message);
+      $("question").value = question;
+      questionBubble.append(el("small", "Ответ не получен", "muted"));
+    }
   } finally {
-    if (ownGeneration === generation) { busy = false; $("send").disabled = false; $("activity").hidden = true; $("question").focus(); }
+    if (ownGeneration === generation) { busy = false; activeRequest = null; $("send").disabled = false; $("activity").hidden = true; $("question").focus({preventScroll: true}); }
   }
 });
 $("new-chat").addEventListener("click", () => {
-  generation++; history = []; busy = false; $("conversation").replaceChildren(); $("intro").hidden = false;
+  generation++; if (activeRequest) activeRequest.abort(); activeRequest = null;
+  history = []; busy = false; $("conversation").replaceChildren(); $("intro").hidden = false;
+  if ($("source-dialog").open) $("source-dialog").close();
   $("question").value = ""; $("event-date").value = ""; $("activity").hidden = true; $("send").disabled = false; showError("");
 });
+$("cancel-wait").addEventListener("click", () => { if (activeRequest) activeRequest.abort(); });
 $("close-source").addEventListener("click", () => $("source-dialog").close());
 document.querySelectorAll("[data-question]").forEach(button => button.addEventListener("click", () => { $("question").value = button.dataset.question; $("question").focus(); }));
 let theme = "dark";
-try { theme = localStorage.getItem("psb-theme") || "dark"; } catch (_) { /* Optional preference storage. */ }
+try { theme = localStorage.getItem("psb-theme") === "light" ? "light" : "dark"; } catch (_) { /* Optional preference storage. */ }
 function applyTheme() { document.documentElement.dataset.theme = theme; $("theme").textContent = theme === "dark" ? "Светлая тема" : "Тёмная тема"; }
 applyTheme();
 $("theme").addEventListener("click", () => { theme = theme === "dark" ? "light" : "dark"; applyTheme(); try { localStorage.setItem("psb-theme", theme); } catch (_) {} });
@@ -114,3 +136,4 @@ async function initialize() {
   } catch (error) { $("corpus-banner").textContent = "Не удалось загрузить базу документов"; showError(error.message); }
 }
 initialize();
+

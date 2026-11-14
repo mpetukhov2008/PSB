@@ -25,7 +25,7 @@
         <div class="examples"><button type="button" data-question="Какие документы нужны для согласования договора?">Какие документы нужны для согласования? <span>↗</span></button><button type="button" data-question="Какой срок согласования договора на 2026-03-01?">Какая редакция действовала на дату? <span>↗</span></button><button type="button" data-question="Какая ставка НДС применяется к договору?">Что делать, если в базе нет ответа? <span>↗</span></button></div>
       </section>
       <section id="conversation" aria-label="Диалог" aria-live="polite" aria-relevant="additions"></section>
-      <div id="activity" class="activity" role="status" hidden><span class="spinner"></span><div><strong>Ищем основания и проверяем ответ</strong><small>Результат появится после завершения проверок</small></div></div>
+      <div id="activity" class="activity" role="status" hidden><span class="spinner"></span><div><strong>Ищем основания и проверяем ответ</strong><small>Результат появится после завершения проверок</small></div><button id="cancel-wait" type="button">Прекратить ожидание</button></div>
       <form id="chat-form" class="composer"><label for="question">Ваш юридический вопрос</label><textarea id="question" rows="3" required minlength="2" maxlength="6000" placeholder="Например: кто согласует договор и какие документы нужны?"></textarea><div class="composer-bottom"><div><label for="event-date">Дата события <span>· необязательно</span></label><input id="event-date" type="date"></div><button class="primary" id="send" type="submit">Найти основания <span>→</span></button></div><p class="muted">Без даты используется текущая редакция. Диалог хранится только в этой вкладке.</p></form>
       <p id="error" class="error" role="alert" hidden></p>
       <footer><span>⚛ Создано в МИФИ · Поколение Степика</span><a href="https://t.me/m_petukhov_2008" target="_blank" rel="noopener noreferrer">Поддержка ↗</a></footer>
@@ -34,3 +34,4 @@
   <dialog id="source-dialog" aria-labelledby="source-title"><div class="dialog-head"><div><span class="eyebrow">ПЕРВОИСТОЧНИК</span><h2 id="source-title"></h2></div><button id="close-source" type="button" aria-label="Закрыть документ">×</button></div><div id="source-body"></div></dialog>
 </body>
 </html>
+

@@ -35,6 +35,18 @@ jobs:
           name: psb-interface
           path: artifacts/
           if-no-files-found: ignore
+  windows-quick-start:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Core, subprocess and real CMD quick-start tests
+        run: python -m unittest discover -s tests_psb -v
+      - name: Quick-start diagnostics
+        shell: cmd
+        run: START_PSB.cmd --check
   docker:
     runs-on: ubuntu-24.04
     steps:
@@ -45,3 +57,13 @@ jobs:
         if: always()
       - run: docker compose down
         if: always()
+  pdf-import:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements-import.txt
+      - run: python tests_import/check_pdf.py -v
+

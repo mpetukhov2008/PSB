@@ -281,6 +281,17 @@ class HTTPTests(unittest.TestCase):
             self.request("/static/../.env.example")
         self.assertEqual(error.exception.code, 404)
 
+    def test_actionable_date_error(self):
+        with self.assertRaises(urllib.error.HTTPError) as error:
+            self.request("/api/chat", {"question": "Срок на 2026-03-01", "event_date": "2026-08-01"})
+        self.assertEqual(error.exception.code, 422)
+        self.assertIn("отличается", json.loads(error.exception.read())["detail"])
+
+    def test_malformed_origin_is_rejected(self):
+        with self.assertRaises(urllib.error.HTTPError) as error:
+            self.request("/api/chat", {"question": "Договор?"}, {"Content-Type": "application/json", "Origin": "http://[invalid"})
+        self.assertEqual(error.exception.code, 403)
+
     def test_oversized_declared_body(self):
         # The server rejects the length before reading an unbounded body.
         # Sending a huge body eagerly can instead cause a client BrokenPipe.
@@ -299,3 +310,4 @@ class HTTPTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
