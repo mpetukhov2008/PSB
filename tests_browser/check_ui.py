@@ -62,7 +62,7 @@ def main():
             assert exported["event_date"] == "2026-03-01"
             assert exported["status"] == "excerpts"
             answer.locator(".source").first.click()
-            assert page.locator("#source-dialog").is_visible()
+            page.locator("#source-dialog").wait_for(state="visible")
             assert "пять рабочих дней" in page.locator("#source-body").inner_text()
             page.screenshot(path=str(OUT / "source.png"))
             page.locator("#close-source").click()
@@ -96,9 +96,9 @@ def main():
             assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
             page.screenshot(path=str(OUT / "mobile.png"), full_page=True)
             page.locator(".source").first.click()
-            assert page.locator("#source-dialog").is_visible()
+            page.locator("#source-dialog").wait_for(state="visible")
             page.keyboard.press("Escape")
-            assert page.locator("#source-dialog").is_hidden()
+            page.locator("#source-dialog").wait_for(state="hidden")
             page.set_viewport_size({"width": 1440, "height": 1000})
             page.locator("#new-chat").click()
             page.locator("#theme").click()
