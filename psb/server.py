@@ -41,7 +41,18 @@ def make_server(host, port, assistant):
             except (BrokenPipeError, ConnectionResetError):
                 pass
 
+        def host_allowed(self):
+            try:
+                host = urlsplit("http://" + self.headers.get("Host", ""))
+                return (host.hostname in {"localhost", "127.0.0.1", "::1"}
+                        and not host.username and not host.password
+                        and not host.path and not host.query and not host.fragment)
+            except ValueError:
+                return False
+
         def do_GET(self):
+            if not self.host_allowed():
+                return self.send(403, {"detail": "Недопустимый Host"})
             path = unquote(urlsplit(self.path).path)
             if path == "/api/health":
                 return self.send(200, {"status": "ok", "application": "psb",
@@ -66,6 +77,8 @@ def make_server(host, port, assistant):
             return self.send(404, {"detail": "Страница не найдена"})
 
         def do_POST(self):
+            if not self.host_allowed():
+                return self.send(403, {"detail": "Недопустимый Host"})
             if urlsplit(self.path).path != "/api/chat":
                 return self.send(404, {"detail": "Маршрут не найден"})
             origin = self.headers.get("Origin")

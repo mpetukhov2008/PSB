@@ -266,6 +266,11 @@ class HTTPTests(unittest.TestCase):
             self.request("/api/chat", {"question": "x"})
         self.assertEqual(error.exception.code, 422)
 
+    def test_foreign_host(self):
+        with self.assertRaises(urllib.error.HTTPError) as error:
+            self.request("/api/documents", headers={"Host": "attacker.invalid"})
+        self.assertEqual(error.exception.code, 403)
+
     def test_cross_origin(self):
         with self.assertRaises(urllib.error.HTTPError) as error:
             self.request("/api/chat", {"question": "Договор?"}, {"Content-Type": "application/json", "Origin": "https://attacker.invalid"})
