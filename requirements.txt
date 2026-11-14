@@ -1,10 +1,1 @@
-fastapi>=0.115,<1
-uvicorn>=0.34,<1
-pydantic>=2.9,<3
-httpx>=0.28,<1
-python-dotenv>=1,<2
-psycopg[binary]>=3.2,<4
-pypdf>=5,<7
-pypdfium2>=5.15,<6
-langchain-gigachat>=0.5,<0.6
-langchain-core>=1,<2
+# Runtime: Python 3.12 standard library only; no third-party packages.

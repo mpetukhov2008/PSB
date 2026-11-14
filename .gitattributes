@@ -1,2 +1,5 @@
-# Keep the historical corpus fingerprint portable across Windows and Linux.
-reports/ras-gigachat-verified-live.json text eol=lf
+* text=auto
+*.py text eol=lf
+*.js text eol=lf
+*.css text eol=lf
+*.sh text eol=lf

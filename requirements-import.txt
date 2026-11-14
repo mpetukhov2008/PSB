@@ -1,0 +1,2 @@
+# Optional local PDF import only; not installed in the web image.
+pypdf==5.4.0

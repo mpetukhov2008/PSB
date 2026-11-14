@@ -1,0 +1,22 @@
+services:
+  assistant:
+    build: .
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      PSB_CORPUS_PATH: /opt/psb/corpus/knowledge.json
+      PSB_LLM_BASE_URL: ${PSB_LLM_BASE_URL:-}
+      PSB_LLM_API_KEY: ${PSB_LLM_API_KEY:-}
+      PSB_LLM_MODEL: ${PSB_LLM_MODEL:-}
+    volumes:
+      - ${PSB_CORPUS_FILE:-./samples/psb-demo.json}:/opt/psb/corpus/knowledge.json:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 512m
+    restart: unless-stopped

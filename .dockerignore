@@ -1,0 +1,9 @@
+**
+!psb/
+!psb/**
+!samples/
+!samples/psb-demo.json
+!solution.py
+!Dockerfile
+psb/**/__pycache__/
+psb/**/*.pyc

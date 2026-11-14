@@ -1,17 +1,11 @@
+.env
+.env.*
+!.env.example
 .venv/
 __pycache__/
+*.py[cod]
 .pytest_cache/
 .ruff_cache/
-*.pyc
-.env
 data/
-*.log
-# Browser diagnostics are downloadable CI artifacts, not application assets.
-reports/ui-*.jpg
-reports/ci-*.xml
-reports/critic-eval-*.json
-reports/retrieval-eval.json
-
-# Generated browser screenshots are CI artifacts.
-reports/ui-desktop.png
-reports/ui-mobile.png
+artifacts/
+*.zip

@@ -1,140 +1,47 @@
-name: Reproducibility checks
-
-on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
-      - 'reports/**'
-  pull_request:
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
-      - 'reports/**'
-  workflow_dispatch:
-
+name: PSB verification
+on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
-
 concurrency:
-  group: checks-${{ github.workflow }}-${{ github.ref }}
+  group: psb-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
 jobs:
-  postgres:
-    name: Python 3.10 / PostgreSQL 17
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: prospects_test
-          POSTGRES_PASSWORD: ci-only-password
-          POSTGRES_DB: prospects_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U prospects_test -d prospects_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    env:
-      TEST_DATABASE_URL: postgresql://prospects_test:ci-only-password@127.0.0.1:5432/prospects_test
-      REQUIRE_OCR: '1'
+  core:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.10', '3.12', '3.14']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
-      - name: Install exact dependencies
-        run: python -m pip install -r requirements.lock.txt
-      - name: Install Russian and English OCR
-        run: sudo apt-get update -qq && sudo apt-get install -y tesseract-ocr tesseract-ocr-rus
-      - name: Lint
-        run: python -m ruff check app tests scripts
-      - name: Event-driven interface states
-        run: node --test tests/ui_progress.test.cjs
-      - name: Backend and PostgreSQL tests
-        run: python -m pytest -q -rs --ignore=tests/test_ui.py --junitxml=reports/ci-postgres.xml
-      - name: Structural critic regression evaluation
-        run: |
-          python scripts/eval_critic.py --split dev --check --out reports/critic-eval-dev.json
-          python scripts/eval_critic.py --split test --check --out reports/critic-eval-test.json
-      - name: Provisional retrieval baseline
-        run: python scripts/eval_retrieval.py --allow-draft --out reports/retrieval-eval.json
-      - name: Synthetic demo
-        run: python scripts/demo.py
-      - name: Save test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: postgres-results
-          path: |
-            reports/ci-postgres.xml
-            reports/critic-eval-dev.json
-            reports/critic-eval-test.json
-            reports/retrieval-eval.json
-          if-no-files-found: ignore
-          retention-days: 7
-
-  windows:
-    name: Python 3.10 / Windows / Edge
-    runs-on: windows-latest
-    timeout-minutes: 15
-    env:
-      REQUIRE_OCR: '1'
+          python-version: ${{ matrix.python }}
+      - run: python -m unittest discover -s tests_psb -v
+      - run: node --check psb/static/chat.js
+  browser:
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
-      - name: Install exact dependencies
-        run: python -m pip install -r requirements.lock.txt
-      - name: Install checked Windows OCR runtime
-        run: ./scripts/setup_ocr.ps1
-      - name: Check Edge availability
-        run: python -c "from playwright.sync_api import sync_playwright; p=sync_playwright().start(); b=p.chromium.launch(channel='msedge', headless=True); print(b.version); b.close(); p.stop()"
-      - name: Lint
-        run: python -m ruff check app tests scripts
-      - name: Event-driven interface states
-        run: node --test tests/ui_progress.test.cjs
-      - name: SQLite API and browser tests
-        run: python -m pytest -q -rs --ignore=tests/test_postgres.py --junitxml=reports/ci-windows.xml
-      - name: Structural critic regression evaluation
-        run: |
-          python scripts/eval_critic.py --split dev --check --out reports/critic-eval-dev.json
-          python scripts/eval_critic.py --split test --check --out reports/critic-eval-test.json
-      - name: Provisional retrieval baseline
-        run: python scripts/eval_retrieval.py --allow-draft --out reports/retrieval-eval.json
-      - name: Synthetic demo
-        run: python scripts/demo.py
-      - name: Save test results and browser screenshots
+          python-version: '3.12'
+      - run: python -m pip install -r requirements-dev.txt
+      - run: python -m playwright install --with-deps chromium
+      - run: python tests_browser/check_ui.py
+      - uses: actions/upload-artifact@v4
         if: always()
-        uses: actions/upload-artifact@v4
         with:
-          name: windows-results
-          path: |
-            reports/ci-windows.xml
-            reports/critic-eval-dev.json
-            reports/critic-eval-test.json
-            reports/retrieval-eval.json
-            reports/ui-desktop.png
-            reports/ui-mobile.png
-            reports/ui-home.jpg
-            reports/ui-welcome.jpg
-            reports/ui-light.jpg
-            reports/ui-processing.jpg
+          name: psb-interface
+          path: artifacts/
           if-no-files-found: ignore
-          retention-days: 7
-
-  zip-startup:
-    name: ZIP / Windows / Python bootstrap
-    runs-on: windows-latest
-    timeout-minutes: 20
+  docker:
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Start extracted ZIP without an existing environment
-        shell: powershell
-        run: ./scripts/test_zip_start.ps1
+      - run: docker compose up --build -d --wait
+      - run: curl --fail http://127.0.0.1:8080/api/health
+      - run: docker compose logs
+        if: always()
+      - run: docker compose down
+        if: always()
