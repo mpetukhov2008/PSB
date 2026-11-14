@@ -1,4 +1,5 @@
 import copy
+import http.client
 import json
 import os
 import threading
@@ -275,10 +276,20 @@ class HTTPTests(unittest.TestCase):
             self.request("/static/../.env.example")
         self.assertEqual(error.exception.code, 404)
 
-    def test_oversized_body(self):
-        with self.assertRaises(urllib.error.HTTPError) as error:
-            self.request("/api/chat", {"question": "я" * 100001})
-        self.assertEqual(error.exception.code, 413)
+    def test_oversized_declared_body(self):
+        # The server rejects the length before reading an unbounded body.
+        # Sending a huge body eagerly can instead cause a client BrokenPipe.
+        connection = http.client.HTTPConnection("127.0.0.1", self.server.server_port, timeout=5)
+        try:
+            connection.putrequest("POST", "/api/chat")
+            connection.putheader("Content-Type", "application/json")
+            connection.putheader("Content-Length", "100001")
+            connection.endheaders()
+            response = connection.getresponse()
+            self.assertEqual(response.status, 413)
+            self.assertIn("100", response.read().decode())
+        finally:
+            connection.close()
 
 
 if __name__ == "__main__":

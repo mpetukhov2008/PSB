@@ -7,8 +7,9 @@ concurrency:
   cancel-in-progress: true
 jobs:
   core:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
+      fail-fast: false
       matrix:
         python: ['3.10', '3.12', '3.14']
     steps:
@@ -19,7 +20,7 @@ jobs:
       - run: python -m unittest discover -s tests_psb -v
       - run: node --check psb/static/chat.js
   browser:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -35,7 +36,7 @@ jobs:
           path: artifacts/
           if-no-files-found: ignore
   docker:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - run: docker compose up --build -d --wait
