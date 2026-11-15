@@ -53,6 +53,8 @@ jobs:
       - uses: actions/checkout@v4
       - run: docker compose up --build -d --wait
       - run: curl --fail http://127.0.0.1:8080/api/health
+      - name: Expert Docker startup with provided data and model settings
+        run: python3 tests_docker/check_compose.py
       - run: docker compose logs
         if: always()
       - run: docker compose down
