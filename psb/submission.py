@@ -61,7 +61,7 @@ def read_questions(path):
         rows = list(reader)
     if not rows or len(rows) > 10000:
         raise ValueError('Нужно от 1 до 10000 вопросов')
-    ids = [row.get('id', '').strip() for row in rows]
+    ids = [(row.get('id') or '').strip() for row in rows]
     if any(not ident for ident in ids) or len(set(ids)) != len(ids):
         raise ValueError('ID должны быть непустыми и уникальными')
     if any(not isinstance(row.get('question'), str) or not 2 <= len(row['question']) <= 40000 or None in row for row in rows):

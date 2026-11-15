@@ -146,13 +146,24 @@ class Model:
 
 
 def question_dates(text):
-    found = re.findall(r"\b\d{4}-\d{2}-\d{2}\b", text)
-    found += [f"{y}-{m}-{d}" for d, m, y in re.findall(r"\b(\d{2})\.(\d{2})\.(\d{4})\b", text)]
-    from psb.corpus import MONTH_STEMS
-    for index, month in enumerate(MONTH_STEMS, 1):
-        found += [f'{y}-{index:02d}-01' for y in re.findall(
-            r'\b' + month + r'[а-я]*\s+((?:19|20)\d{2})\s*(?:г|год)', text.lower())]
+    from psb.corpus import MONTH_STEMS, dates_in
+    found = re.findall(r'\b\d{4}-\d{2}-\d{2}\b', text) + dates_in(text)
+    if not found:
+        for index, month in enumerate(MONTH_STEMS, 1):
+            found += [f'{year}-{index:02d}-01' for year in re.findall(
+                r'\b' + month + r'[а-я]*\s+((?:19|20)\d{2})\b', text.lower())]
     return set(found)
+
+
+def month_precision(text):
+    from psb.corpus import MONTH_STEMS
+    return bool(re.search(r'\b(?:' + '|'.join(MONTH_STEMS) + r')[а-я]*\s+\d{4}\b',
+                          text.lower()) and not dates_in_text(text))
+
+
+def dates_in_text(text):
+    from psb.corpus import dates_in
+    return dates_in(text) + re.findall(r'\b\d{4}-\d{2}-\d{2}\b', text)
 
 
 def validate_request(value):
@@ -172,7 +183,7 @@ def validate_request(value):
     if sum(len(t["content"]) for t in history) > 32000:
         raise RequestError("История слишком длинная. Начните новый диалог или сократите предыдущие реплики")
     selected = value.get("document_ids", [])
-    if (not isinstance(selected, list) or len(selected) > 20
+    if (not isinstance(selected, list) or len(selected) > 100
             or any(not isinstance(x, str) for x in selected)):
         raise RequestError("Некорректный список документов")
     at = value.get("event_date", "")
@@ -180,7 +191,7 @@ def validate_request(value):
         raise RequestError("Некорректная дата события")
     if at:
         dates = question_dates(question)
-        if len(dates) == 1 and at not in dates:
+        if len(dates) == 1 and at not in dates and not (month_precision(question) and at[:7] == next(iter(dates))[:7]):
             raise RequestError("Дата в вопросе отличается от выбранной даты события. Уточните дату")
     if not at:
         dates = question_dates(question)
@@ -264,7 +275,8 @@ class Assistant:
                   "sources": [], "corpus_kind": self.kb.kind,
                   "corpus_fingerprint": self.kb.fingerprint,
                   "event_date": at.isoformat(), "explicit_date": explicit_date,
-                  "mode": "model" if self.model.ready else "extractive", "stages": []}
+                  "mode": "model" if self.model.ready else "extractive", "stages": [],
+                  "date_precision": "month" if month_precision(question) and not value.get("event_date") else "day"}
 
         def stage(name):
             result["stages"].append({"name": name, "elapsed_ms": round((time.monotonic() - started) * 1000)})
@@ -286,6 +298,14 @@ class Assistant:
             if fragment.document_id in related and fragment.applies(at) and fragment.id not in seen and len(fragments) < 18:
                 fragments.append(fragment)
                 seen.add(fragment.id)
+        if result['date_precision'] == 'month':
+            families = {fragment.family for fragment in fragments}
+            boundaries = [doc for doc in self.kb.documents.values() if doc['family'] in families
+                          and doc['effective_from'] and doc['effective_from'][:7] == at.isoformat()[:7]
+                          and doc['effective_from'] > at.isoformat()]
+            if boundaries:
+                result.update(status='clarification', message='В указанном месяце менялась редакция документа. Укажите точную дату события.')
+                return result
         stage("Поиск по базе и выбор редакций")
         result["sources"] = [f.public() for f in fragments]
         if not fragments:
@@ -307,7 +327,7 @@ class Assistant:
             return result
         payload = {"question": question, "history": history, "event_date": at.isoformat(),
                    "corpus_kind": self.kb.kind, "fragments": result["sources"],
-                   'date_precision': 'month' if re.search(r'[а-я]+\s+\d{4}\s*(?:г|год)', question.lower()) and not re.search(r'\d{2}\.\d{2}\.\d{4}', question) else 'day',
+                   'date_precision': result['date_precision'],
                    'historical_law_missing': bool(unavailable_laws)}
         try:
             draft = self.model.complete(SYSTEM, payload)

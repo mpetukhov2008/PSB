@@ -135,7 +135,7 @@ class LaunchTests(unittest.TestCase):
             with urllib.request.urlopen(url + "api/health", timeout=5) as response:
                 health = json.load(response)
             self.assertEqual(health["application"], "psb")
-            self.assertEqual(health["version"], "1.1.0")
+            self.assertEqual(health["version"], "1.2.0")
             self.assertFalse(health["model_ready"])
         finally:
             process.terminate()

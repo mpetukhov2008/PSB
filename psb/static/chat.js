@@ -39,7 +39,7 @@ function bubble(role, text) {
 function renderAnswer(result) {
   const node = bubble("assistant");
   node.append(el("div", labels[result.status] || "Результат", "badge"));
-  node.append(el("p", `Редакции на ${result.event_date}${result.explicit_date ? " · дата события" : " · текущая дата"}`, "muted"));
+  node.append(el("p", result.date_precision === "month" ? `Редакции за ${result.event_date.slice(0, 7)} · месяц события` : `Редакции на ${result.event_date}${result.explicit_date ? " · дата события" : " · текущая дата"}`, "muted"));
   if (result.message) node.append(el("p", result.message));
   const byId = new Map(result.sources.map(f => [f.id, f]));
   for (const claim of result.claims) {

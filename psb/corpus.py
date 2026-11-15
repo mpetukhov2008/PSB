@@ -164,7 +164,7 @@ def prepare_archive(path):
 
 def load_corpus(path):
     path = Path(path)
-    return KnowledgeBase(prepare_archive(path)) if path.suffix.lower() == '.zip' else KnowledgeBase.load(path)
+    return KnowledgeBase(prepare_archive(path)) if path.suffix.lower() == '.zip' or zipfile.is_zipfile(path) else KnowledgeBase.load(path)
 
 
 def save_corpus(source, destination):

@@ -41,7 +41,7 @@ def main(argv=None):
         load_environment()
         kb = load_corpus(corpus_path(args.corpus))
         assistant = Assistant(kb)
-        print("ОПОРА · PSB 1.1.0", flush=True)
+        print("ОПОРА · PSB 1.2.0", flush=True)
         print(f"База: {'учебная (вымышленные документы)' if kb.kind == 'demo' else 'предоставленная'}; документов: {len(kb.documents)}", flush=True)
         print("Модель: настроена; доступ проверяется при запросе" if assistant.model.ready else "Модель: отключена; доступны только выдержки", flush=True)
         if args.check:

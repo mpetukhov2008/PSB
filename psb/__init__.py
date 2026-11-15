@@ -1,4 +1,3 @@
-"""Closed-corpus legal assistant for the PSB case."""
+"""ОПОРА: юридический ассистент по закрытой базе документов."""
 
-__version__ = "1.1.0"
-
+__version__ = "1.2.0"

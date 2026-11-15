@@ -75,6 +75,15 @@ class CorpusZIPTests(unittest.TestCase):
         self.assertTrue(any('9 миллионов' in item['text'] for item in result['sources']))
         self.assertFalse(any('16 миллионов' in item['text'] for item in result['sources']))
 
+    def test_inflected_counterparty_scope(self):
+        scope = self.kb.resolve_scope('Договор с Ромашкой-Плюс?')
+        # Multiword names are normalized without merging them with a shorter party.
+        self.assertTrue(scope)
+
+    def test_explicit_date_inside_named_month_is_valid(self):
+        result = validate_request({'question': 'Договор в августе 2024 года?', 'event_date': '2024-08-15'})
+        self.assertEqual(result[3], date(2024, 8, 15))
+
     def test_exact_revision_boundary(self):
         old = self.kb.search('миллионов директор', date(2025, 2, 28))
         new = self.kb.search('миллионов директор', date(2025, 3, 1))
@@ -186,7 +195,8 @@ class CSVTests(unittest.TestCase):
             '--corpus', str(self.corpus), '--output', str(output), '--offline'],
             cwd=self.directory, env=env, capture_output=True, encoding='utf-8', timeout=20)
         self.assertEqual(completed.returncode, 0, completed.stderr)
-        self.assertEqual(len(list(csv.DictReader(output.open(encoding='utf-8')))), 2)
+        with output.open(encoding='utf-8') as stream:
+            self.assertEqual(len(list(csv.DictReader(stream))), 2)
         package = build(self.directory / 'submit.zip')
         with zipfile.ZipFile(package) as archive:
             names = archive.namelist()
