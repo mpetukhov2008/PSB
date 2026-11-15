@@ -11,6 +11,7 @@ from psb import __version__
 from psb.assistant import Assistant, RequestError
 from psb.config import corpus_path, load_environment
 from psb.knowledge import KnowledgeBase
+from psb.corpus import load_corpus
 
 STATIC = Path(__file__).parent / "static"
 
@@ -144,7 +145,7 @@ def main():
     args = parser.parse_args()
     try:
         load_environment()
-        kb = KnowledgeBase.load(corpus_path(args.corpus))
+        kb = load_corpus(corpus_path(args.corpus))
         server = make_server(args.host, args.port, Assistant(kb))
     except (ValueError, OSError, TypeError):
         parser.exit(1, "Не удалось запустить PSB. Проверьте .env, базу знаний и свободный порт.\n")

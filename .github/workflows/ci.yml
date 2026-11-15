@@ -67,3 +67,17 @@ jobs:
       - run: python -m pip install -r requirements-import.txt
       - run: python tests_import/check_pdf.py -v
 
+
+  platform-package:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/package_submission.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PSB-submission
+          path: artifacts/PSB_submission.zip
+          if-no-files-found: error

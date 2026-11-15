@@ -25,7 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def offline_env():
-    return {**os.environ, **{key: "" for key in ENV_KEYS}, "PSB_LLM_TIMEOUT_SECONDS": "35"}
+    return {**os.environ, **{key: "" for key in ENV_KEYS}, "PSB_LLM_TIMEOUT_SECONDS": "35", "PSB_CORPUS_FILE": "samples/psb-demo.json"}
 
 
 class ConfigTests(unittest.TestCase):
@@ -135,7 +135,7 @@ class LaunchTests(unittest.TestCase):
             with urllib.request.urlopen(url + "api/health", timeout=5) as response:
                 health = json.load(response)
             self.assertEqual(health["application"], "psb")
-            self.assertEqual(health["version"], "1.1.0")
+            self.assertEqual(health["version"], "1.2.0")
             self.assertFalse(health["model_ready"])
         finally:
             process.terminate()
@@ -145,7 +145,7 @@ class LaunchTests(unittest.TestCase):
 
     def test_jsonl_bad_and_oversized_cases_do_not_poison_next_case(self):
         cases = "broken-json\n" + json.dumps("x" * 100010) + '\n{"question":"Согласование договора"}\n'
-        result = subprocess.run([sys.executable, "solution.py"], cwd=ROOT, input=cases,
+        result = subprocess.run([sys.executable, "solution.py", "--jsonl"], cwd=ROOT, input=cases,
                                 env=offline_env(), encoding="utf-8", capture_output=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr)
         lines = [json.loads(line) for line in result.stdout.splitlines()]

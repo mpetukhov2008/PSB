@@ -8,6 +8,10 @@ ROOT = Path(__file__).resolve().parents[1]
 ENV_KEYS = {
     "PSB_CORPUS_PATH", "PSB_CORPUS_FILE", "PSB_LLM_BASE_URL", "PSB_LLM_API_KEY",
     "PSB_LLM_MODEL", "PSB_LLM_TIMEOUT_SECONDS",
+    "DATA_DIR", "LLM_BASE_URL", "BASE_URL", "OPENAI_BASE_URL", "LLM_API_KEY", "OPENAI_API_KEY",
+    "LLM_MODEL", "GEN_MODEL", "OPENAI_MODEL", "EMBEDDER_API_KEY", "RERANKER_API_KEY",
+    "EMB_MODEL", "RERANKER_MODEL", "PSB_USE_EMBEDDINGS", "PSB_USE_RERANKER",
+    "TOP_K", "RERANKER_TOP_N", "MAX_TOKENS", "MAX_WORKERS", "PSB_CORPUS_ZIP",
 }
 
 
@@ -50,6 +54,31 @@ def load_environment(root=ROOT):
 
 
 def corpus_path(explicit=None, root=ROOT):
-    value = explicit or os.getenv("PSB_CORPUS_PATH") or os.getenv("PSB_CORPUS_FILE")
+    value = explicit or os.getenv("PSB_CORPUS_PATH") or os.getenv("PSB_CORPUS_ZIP") or os.getenv("PSB_CORPUS_FILE")
+    if not value:
+        for name in ('knowledge.json', 'kb.zip', 'knowledge-base.zip', 'knowledge_base.zip'):
+            candidate = Path(root) / 'data' / name
+            if candidate.is_file():
+                return candidate
     path = Path(value) if value else Path("samples/psb-demo.json")
     return path if path.is_absolute() else Path(root) / path
+
+def setting(*names, default=''):
+    for name in names:
+        value = os.getenv(name, '').strip()
+        if value and value != name:
+            return value
+    return default
+
+
+def integer(name, default, low, high):
+    raw = setting(name)
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+        if low <= value <= high:
+            return value
+    except ValueError:
+        pass
+    raise ConfigError(f'{name} должен быть целым числом от {low} до {high}')
