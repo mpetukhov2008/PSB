@@ -68,6 +68,7 @@ function renderAnswer(result) {
   }
   const trace = el("details"); trace.append(el("summary", "Как получен результат"));
   const steps = el("ol"); result.stages.forEach(step => steps.append(el("li", `${step.name} · ${step.elapsed_ms} мс`))); trace.append(steps);
+  for (const note of result.retrieval_notes || []) trace.append(el("p", note, "muted"));
   trace.append(el("p", result.mode === "model" ? "Для генерации и отдельной смысловой проверки используется одна модель. Это не гарантия юридической правильности." : "Локальный поиск по словам. Юридические выводы не формировались."));
   node.append(trace);
   const download = el("button", "Скачать результат · JSON", "download-result");
@@ -126,6 +127,19 @@ async function initialize() {
     const [data, health] = await Promise.all([getJson("/api/documents"), getJson("/api/health")]);
     $("doc-count").textContent = "· " + data.documents.length;
     $("corpus-banner").textContent = (data.corpus_kind === "demo" ? "УЧЕБНЫЙ РЕЖИМ · Вымышленные регламенты для проверки. Это не документы банка." : "База предоставленных документов · Ответы ограничены её содержимым.") + (health.model_ready ? " Модель подключена к API; доступ проверяется при запросе." : " Модель не подключена — доступны выдержки.");
+    if (data.corpus_kind === "provided") {
+      const examples = [
+        ["Какая арендная плата по договору с Северным Складом?", "Арендная плата и основания"],
+        ["Нужно ли было одобрение директора для договора на 12 млн в августе 2024 года?", "Редакция регламента на дату"],
+        ["Какой гарантийный срок по договору с Альфа-Трейдинг?", "Гарантия по нужному договору"]
+      ];
+      document.querySelectorAll("[data-question]").forEach((button, index) => {
+        if (examples[index]) {
+          button.dataset.question = examples[index][0];
+          button.replaceChildren(document.createTextNode(examples[index][1] + " "), el("span", "↗"));
+        }
+      });
+    }
     for (const doc of data.documents) {
       const card = el("div", undefined, "document"); const label = el("label");
       const checkbox = el("input"); checkbox.type = "checkbox"; checkbox.value = doc.id;

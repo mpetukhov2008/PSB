@@ -9,6 +9,7 @@ import webbrowser
 from psb.assistant import Assistant
 from psb.config import ConfigError, corpus_path, load_environment
 from psb.knowledge import KnowledgeBase
+from psb.corpus import load_corpus
 from psb.server import make_server
 
 
@@ -38,7 +39,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         load_environment()
-        kb = KnowledgeBase.load(corpus_path(args.corpus))
+        kb = load_corpus(corpus_path(args.corpus))
         assistant = Assistant(kb)
         print("ОПОРА · PSB 1.1.0", flush=True)
         print(f"База: {'учебная (вымышленные документы)' if kb.kind == 'demo' else 'предоставленная'}; документов: {len(kb.documents)}", flush=True)

@@ -9,6 +9,18 @@ services:
       PSB_LLM_API_KEY: ${PSB_LLM_API_KEY:-}
       PSB_LLM_MODEL: ${PSB_LLM_MODEL:-}
       PSB_LLM_TIMEOUT_SECONDS: ${PSB_LLM_TIMEOUT_SECONDS:-35}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      EMBEDDER_API_KEY: ${EMBEDDER_API_KEY:-}
+      RERANKER_API_KEY: ${RERANKER_API_KEY:-}
+      EMB_MODEL: ${EMB_MODEL:-baai/bge-m3}
+      RERANKER_MODEL: ${RERANKER_MODEL:-cohere/rerank-5-fast}
+      PSB_USE_EMBEDDINGS: ${PSB_USE_EMBEDDINGS:-false}
+      PSB_USE_RERANKER: ${PSB_USE_RERANKER:-false}
+      TOP_K: ${TOP_K:-40}
+      RERANKER_TOP_N: ${RERANKER_TOP_N:-12}
+      MAX_TOKENS: ${MAX_TOKENS:-3500}
     volumes:
       - ${PSB_CORPUS_FILE:-./samples/psb-demo.json}:/opt/psb/corpus/knowledge.json:ro
     read_only: true
@@ -21,4 +33,3 @@ services:
     pids_limit: 128
     mem_limit: 512m
     restart: unless-stopped
-
